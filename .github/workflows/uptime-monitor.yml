@@ -14,12 +14,12 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install Dependencies
-        run: sudo apt-get install -y curl jq
+        run: |
+          apt-get update
+          apt-get install -y curl jq
 
       - name: Update Uptime Status
         run: |
-          set -x  # Print each command before executing it
-
           # Display the content of services.json
           echo "Services data:"
           cat services.json
@@ -45,15 +45,20 @@ jobs:
               status="online"
             fi
 
-            # Update or create the service entry in status.json
-            jq --arg name "$name" --arg status "$status" --arg date "$today" '
+            echo "Updating status.json for $name"
+            if jq --arg name "$name" --arg status "$status" --arg date "$today" '
               if (.[] | select(.name == $name)) | length == 0 then
                 . += [{name: $name, statuses: [{date: $date, statuses: [{status: $status}]}]}]
               else
                 (.[] | select(.name == $name) | .statuses) |= map(select(.date != $date)) + [{date: $date, statuses: [{status: $status}]}]
               end' \
-              status.json > temp.json && mv temp.json status.json
-
+              status.json > temp.json; then
+              echo "Updated status.json successfully"
+              mv temp.json status.json
+            else
+              echo "Error updating status.json"
+              cat temp.json
+            fi
           done
 
           # Display the final content of status.json
@@ -66,11 +71,10 @@ jobs:
           git config --local user.name "GitHub Action"
           git add status.json
 
-          # Check if there are changes to commit
-          if git diff --cached --exit-code; then
+          # Commit and push changes only if there are new changes
+          if git diff --cached --quiet; then
             echo "No changes to commit"
-            exit 0
+          else
+            git commit -m "Update uptime status"
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           fi
-
-          git commit -m "Update uptime status"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
