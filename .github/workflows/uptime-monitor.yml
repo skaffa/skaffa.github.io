@@ -3,6 +3,7 @@ name: Uptime Monitor
 on:
   schedule:
     - cron: '*/5 * * * *'  # Runs every 5 minutes
+  workflow_dispatch:  # Allows manual triggering
 
 jobs:
   uptime-monitor:
@@ -18,7 +19,7 @@ jobs:
       - name: Update Uptime Status
         run: |
           set -x  # Print each command before executing it
-          
+
           # Display the content of services.json
           echo "Services data:"
           cat services.json
@@ -44,7 +45,7 @@ jobs:
               status="online"
             fi
 
-            # Check if service entry exists and update or create it
+            # Update or create the service entry in status.json
             jq --arg name "$name" --arg status "$status" --arg date "$today" '
               if (.[] | select(.name == $name)) | length == 0 then
                 . += [{name: $name, statuses: [{date: $date, statuses: [{status: $status}]}]}]
@@ -59,11 +60,17 @@ jobs:
           echo "Final status.json content:"
           cat status.json
 
-
       - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add status.json
+
+          # Check if there are changes to commit
+          if git diff --cached --exit-code; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
           git commit -m "Update uptime status"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
