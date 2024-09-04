@@ -17,6 +17,12 @@ jobs:
 
       - name: Update Uptime Status
         run: |
+          set -x  # Print each command before executing it
+          
+          # Display the content of services.json
+          echo "Services data:"
+          cat services.json
+
           services=$(cat services.json)
           today=$(date -u +"%Y-%m-%d")
 
@@ -24,6 +30,10 @@ jobs:
           if [ ! -f status.json ]; then
             echo "[]" > status.json
           fi
+
+          # Display the initial content of status.json
+          echo "Initial status.json content:"
+          cat status.json
 
           # Process each service
           echo "$services" | jq -c '.[]' | while read service; do
@@ -45,10 +55,15 @@ jobs:
 
           done
 
+          # Display the final content of status.json
+          echo "Final status.json content:"
+          cat status.json
+
+
       - name: Commit and Push Changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           git add status.json
           git commit -m "Update uptime status"
-          git push
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
