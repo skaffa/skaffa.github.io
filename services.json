@@ -1,0 +1,15 @@
+[
+    {
+      "name": "Example",
+      "url": "https://example.com"
+    },
+    {
+      "name": "Google",
+      "url": "https://beanium.net"
+    },
+    {
+      "name": "Beanium MC",
+      "url": "https://beanium.net:25565"
+    }
+  ]
+  

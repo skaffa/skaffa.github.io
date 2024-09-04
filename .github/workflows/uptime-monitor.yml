@@ -1,0 +1,54 @@
+name: Uptime Monitor
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Runs every 5 minutes
+
+jobs:
+  uptime-monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: sudo apt-get install -y curl jq
+
+      - name: Update Uptime Status
+        run: |
+          services=$(cat services.json)
+          today=$(date -u +"%Y-%m-%d")
+
+          # Initialize status.json if not present
+          if [ ! -f status.json ]; then
+            echo "[]" > status.json
+          fi
+
+          # Process each service
+          echo "$services" | jq -c '.[]' | while read service; do
+            name=$(echo $service | jq -r '.name')
+            url=$(echo $service | jq -r '.url')
+            status="offline"
+            if curl -s --head --request GET $url | grep "200 OK" > /dev/null; then 
+              status="online"
+            fi
+
+            # Check if service entry exists and update or create it
+            jq --arg name "$name" --arg status "$status" --arg date "$today" '
+              if (.[] | select(.name == $name)) | length == 0 then
+                . += [{name: $name, statuses: [{date: $date, statuses: [{status: $status}]}]}]
+              else
+                (.[] | select(.name == $name) | .statuses) |= map(select(.date != $date)) + [{date: $date, statuses: [{status: $status}]}]
+              end' \
+              status.json > temp.json && mv temp.json status.json
+
+          done
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add status.json
+          git commit -m "Update uptime status"
+          git push

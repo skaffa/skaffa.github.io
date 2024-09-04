@@ -1,7 +1,88 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uptime Monitor</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        h1 { text-align: center; color: #333; }
+        .service { margin: 20px 0; padding: 10px; background-color: #fff; border: 1px solid #ddd; border-radius: 4px; }
+        .service-name { font-weight: bold; margin-bottom: 10px; font-size: 18px; color: #333; }
+        .uptime-bars { display: flex; }
+        .uptime-bar { width: 20px; height: 20px; margin-right: 2px; border-radius: 3px; background-color: rgba(0,0,0,0.2); }
+        .legend { margin-top: 20px; }
+        .legend-item { display: inline-block; margin-right: 20px; }
+        .legend-color { display: inline-block; width: 20px; height: 20px; border-radius: 3px; vertical-align: middle; margin-right: 5px; }
+    </style>
+</head>
 <body>
-<h1>Hello World</h1>
-<p>I'm hosted with GitHub Pages.</p>
+    <h1>Uptime Monitor</h1>
+    <div id="services"></div>
+    
+    <div class="legend">
+        <div class="legend-item"><span class="legend-color" style="background-color: rgba(76, 175, 80, 1);"></span>Online</div>
+        <div class="legend-item"><span class="legend-color" style="background-color: rgba(244, 67, 54, 1);"></span>Offline</div>
+    </div>
+
+    <script>
+        function blendColors(color1, color2, weight) {
+            const d2h = d => d.toString(16).padStart(2, '0'); // Convert decimal to hex
+            const h2d = h => parseInt(h, 16); // Convert hex to decimal
+            
+            color1 = color1.replace(/^#/, '');
+            color2 = color2.replace(/^#/, '');
+
+            const r = h2d(color1.substr(0, 2)) * (1 - weight) + h2d(color2.substr(0, 2)) * weight;
+            const g = h2d(color1.substr(2, 2)) * (1 - weight) + h2d(color2.substr(2, 2)) * weight;
+            const b = h2d(color1.substr(4, 2)) * (1 - weight) + h2d(color2.substr(4, 2)) * weight;
+            
+            return `#${d2h(Math.round(r))}${d2h(Math.round(g))}${d2h(Math.round(b))}`;
+        }
+
+        fetch('status.json')
+            .then(response => response.json())
+            .then(data => {
+                const servicesContainer = document.getElementById('services');
+                data.forEach(service => {
+                    const serviceDiv = document.createElement('div');
+                    serviceDiv.classList.add('service');
+
+                    const serviceName = document.createElement('div');
+                    serviceName.classList.add('service-name');
+                    serviceName.innerText = service.name;
+                    serviceDiv.appendChild(serviceName);
+
+                    const uptimeBars = document.createElement('div');
+                    uptimeBars.classList.add('uptime-bars');
+
+                    service.statuses.forEach(day => {
+                        const bar = document.createElement('div');
+                        bar.classList.add('uptime-bar');
+
+                        let onlineCount = 0;
+                        let totalCount = day.statuses.length;
+
+                        day.statuses.forEach(ping => {
+                            if (ping.status === 'online') {
+                                onlineCount++;
+                            }
+                        });
+
+                        const onlineRatio = onlineCount / totalCount;
+                        const onlineColor = '#4caf50'; // Green for online
+                        const offlineColor = '#f44336'; // Red for offline
+
+                        const blendedColor = blendColors(onlineColor.substring(1), offlineColor.substring(1), 1 - onlineRatio);
+                        bar.style.backgroundColor = blendedColor;
+
+                        uptimeBars.appendChild(bar);
+                    });
+
+                    serviceDiv.appendChild(uptimeBars);
+                    servicesContainer.appendChild(serviceDiv);
+                });
+            });
+    </script>
 </body>
 </html>
